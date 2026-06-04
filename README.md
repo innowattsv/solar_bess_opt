@@ -1,4 +1,4 @@
-# Innowatt — Calculadora Solar + BESS Residencial
+# Innowatt ---- Calculadora Solar + BESS Residencial
 
 Dashboard de simulación de sistemas fotovoltaicos con almacenamiento para
 usuarios residenciales en El Salvador. Implementa el Reglamento Especial de la Ley de Fomento para el Uso de la
