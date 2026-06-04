@@ -1,8 +1,7 @@
 # Innowatt — Calculadora Solar + BESS Residencial
 
 Dashboard de simulación de sistemas fotovoltaicos con almacenamiento para
-usuarios residenciales de EDESAL, El Salvador. Implementa el modelo de negocio
-de Innowatt bajo el Reglamento Especial de la Ley de Fomento para el Uso de la
+usuarios residenciales en El Salvador. Implementa el Reglamento Especial de la Ley de Fomento para el Uso de la
 Energía Renovable (Acuerdo SIGET N.° 072-E-2026).
 
 ---
@@ -17,95 +16,14 @@ innowatt-dashboard/
 └── README.md        # Este archivo
 ```
 
-**Sin dependencias de servidor.** El único recurso externo es Chart.js cargado
-desde cdnjs.cloudflare.com. Todo lo demás corre en el navegador del cliente.
-
----
-
-## Cómo hacer deploy
-
-### Opción 1 — Netlify (recomendada, 5 minutos)
-
-1. Crea cuenta gratuita en https://netlify.com
-2. Desde el dashboard, arrastra la carpeta `innowatt-dashboard/` al área de
-   "Deploy manually".
-3. Netlify asigna una URL automáticamente (ej. `bright-sun-123.netlify.app`).
-4. Para dominio propio: Settings → Domain management → Add custom domain.
-
-**Para actualizaciones posteriores:** vuelve a arrastrar la carpeta o configura
-deploys automáticos desde GitHub (ver Opción 3).
-
-### Opción 2 — GitHub Pages (gratuita, requiere cuenta GitHub)
-
-1. Crea un repositorio nuevo en GitHub (puede ser privado o público).
-2. Sube los tres archivos (`index.html`, `style.css`, `dashboard.js`).
-3. Ve a Settings → Pages → Source: selecciona "main branch / root".
-4. La URL queda en `https://tu-usuario.github.io/nombre-repo/`.
-
-```bash
-# Comandos si tienes Git instalado:
-git init
-git add .
-git commit -m "Innowatt dashboard inicial"
-git remote add origin https://github.com/TU_USUARIO/innowatt-dashboard.git
-git push -u origin main
-```
-
-### Opción 3 — Netlify + GitHub (deploy automático)
-
-La combinación más robusta para actualizar fácilmente:
-
-1. Sube el código a GitHub (siguiendo la Opción 2).
-2. En Netlify: "New site" → "Import from Git" → conecta tu repo.
-3. Cada vez que hagas `git push`, Netlify redeploya automáticamente en ~30 seg.
-4. Puedes asignar un dominio personalizado con HTTPS gratuito (Let's Encrypt).
-
-### Opción 4 — Cloudflare Pages (alternativa a Netlify)
-
-1. Crea cuenta en https://pages.cloudflare.com
-2. "Create application" → "Pages" → "Upload assets".
-3. Arrastra la carpeta o conecta desde GitHub.
-4. Cloudflare Pages incluye CDN global sin costo adicional.
-
-### Opción 5 — Servidor propio o VPS
-
-Si tienes un servidor con Nginx o Apache, simplemente copia los tres archivos
-al directorio web (`/var/www/html/` o equivalente). No requiere configuración
-especial porque es HTML estático puro.
-
----
-
-## Por qué NO usar Streamlit o Flask/Django
-
-Streamlit, Flask y Django son frameworks de Python orientados a aplicaciones
-con lógica de servidor. Este dashboard no tiene backend: toda la simulación
-corre en JavaScript en el navegador del usuario. Añadir un servidor Python
-solo agregaría complejidad, costos de hosting y latencia sin ningún beneficio.
-
-Las opciones de arriba (Netlify, GitHub Pages, Cloudflare Pages) son:
-- Gratuitas para este tipo de uso
-- Con HTTPS automático
-- Sin necesidad de gestionar servidores
-- Con CDN global incluido
-
----
-
-## Personalización frecuente
+## Personalización 
 
 ### Cambiar la tarifa por defecto
 En `index.html`, busca `value="0.185"` en el input con id `tarifa` y ajusta.
 
-### Cambiar el porcentaje por defecto de Innowatt
+### Cambiar el porcentaje de ahorro captado
 En `index.html`, busca `value="80"` en el input con id `share`.
 
-### Agregar tu logo
-En `index.html`, reemplaza el emoji ☀ en el `<div class="logo">` por un
-`<img>` con tu logo:
-```html
-<div class="logo">
-  <img src="logo.svg" alt="Innowatt" height="28">
-</div>
-```
 
 ### Actualizar el perfil solar
 El perfil solar está en `dashboard.js` como `const PERFIL_SOLAR`. Cada fila es
