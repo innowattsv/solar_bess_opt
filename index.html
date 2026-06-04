@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Innowatt — Calculadora Solar + BESS Residencial</title>
+  <meta name="description" content="Calculadora de sistemas de autoconsumo solar fotovoltaico con almacenamiento (BESS) para usuarios residenciales de EDESAL, El Salvador. Modelo de negocio Innowatt bajo el Reglamento LFUER 2026.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='28'>☀️</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ── Encabezado ─────────────────────────────────────────────────────────── -->
+<header class="app-header">
+  <div>
+    <div class="logo">☀ Innowatt</div>
+    <div class="subtitle">Calculadora Solar + BESS — Perfil R2-110 EDESAL</div>
+  </div>
+  <span class="badge">Reglamento LFUER 2026</span>
+</header>
+
+<div class="container">
+
+  <!-- ── Parámetros del cliente ────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Cliente residencial EDESAL — Perfil R2-110</span>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="input-row">
+          <label for="cons">Consumo mensual del cliente</label>
+          <div class="input-group">
+            <input type="number" id="cons" min="50" max="2000" step="25" value="400">
+            <span class="unit">kWh</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="cat">Categoría tarifaria EDESAL</label>
+          <div class="input-group">
+            <select id="cat">
+              <option value="R1">R1 · FC = 0.66</option>
+              <option value="R2" selected>R2 · FC = 0.67</option>
+              <option value="R3">R3 · FC = 0.72</option>
+            </select>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="tarifa">Tarifa eléctrica EDESAL</label>
+          <div class="input-group">
+            <input type="number" id="tarifa" min="0.10" max="0.30" step="0.001" value="0.185">
+            <span class="unit">$/kWh</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="isr">Tasa ISR cliente (persona natural)</label>
+          <div class="input-group">
+            <input type="number" id="isr" min="0" max="35" step="1" value="10">
+            <span class="unit">%</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="input-row">
+          <label for="share">% del ahorro mensual para Innowatt</label>
+          <div class="input-group">
+            <input type="number" id="share" min="10" max="100" step="1" value="80">
+            <span class="unit">%</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="wacc">Tasa de descuento Innowatt (WACC)</label>
+          <div class="input-group">
+            <input type="number" id="wacc" min="3" max="25" step="0.5" value="12">
+            <span class="unit">%</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="cpv">Costo solar instalado</label>
+          <div class="input-group">
+            <input type="number" id="cpv" min="0.5" max="1.5" step="0.05" value="0.85">
+            <span class="unit">$/Wp</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="cbess">Costo BESS instalado</label>
+          <div class="input-group">
+            <input type="number" id="cbess" min="200" max="900" step="25" value="450">
+            <span class="unit">$/kWh</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Optimizador ──────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Optimizador de dimensionamiento</span>
+      <button class="btn primary" onclick="runOptimizer()">Calcular tamaño óptimo</button>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="input-row">
+          <label for="pb-max">Payback máximo aceptable (Innowatt)</label>
+          <div class="input-group">
+            <input type="number" id="pb-max" min="3" max="15" step="1" value="10">
+            <span class="unit">años</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="w-cov">Peso: cobertura de la demanda</label>
+          <div class="input-group">
+            <input type="number" id="w-cov" min="0" max="100" step="10" value="60">
+            <span class="unit">%</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="w-ret">Peso: retorno financiero Innowatt</label>
+          <div class="input-group">
+            <input type="number" id="w-ret" min="0" max="100" step="10" value="40">
+            <span class="unit">%</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;padding-top:4px;">
+        <strong style="color:var(--text);font-size:12px;">Función objetivo compuesta:</strong><br>
+        Score = w_cov × (autosuf / autosuf_máx) + w_ret × (1 − payback / pb_máx)<br><br>
+        El optimizador evalúa combinaciones de PV (0.2–7 kW) × BESS (0–15 kWh).
+        Filtra las que violan los límites del Anexo I o II del Reglamento LFUER
+        y las que superan el payback máximo definido.
+      </div>
+    </div>
+
+    <div id="opt-result" class="opt-result">
+      <div class="opt-header">✓ Tamaño óptimo encontrado</div>
+      <div class="opt-grid" id="opt-vals"></div>
+      <div class="opt-detail" id="opt-detail"></div>
+      <div class="score-bar-track">
+        <div class="score-bar-fill" id="score-bar" style="width:0%"></div>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn" onclick="applyOptimal()">Aplicar este tamaño al dashboard</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Dimensionamiento actual ───────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Dimensionamiento actual del sistema</span>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div class="input-row">
+          <label for="pv">Capacidad solar instalada</label>
+          <div class="input-group">
+            <input type="number" id="pv" min="0.1" max="10" step="0.1" value="2.5">
+            <span class="unit">kW AC</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="bess">Capacidad BESS (0 = sin baterías)</label>
+          <div class="input-group">
+            <input type="number" id="bess" min="0" max="30" step="0.5" value="6">
+            <span class="unit">kWh</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="pr">Performance Ratio del sistema</label>
+          <div class="input-group">
+            <input type="number" id="pr" min="0.70" max="0.90" step="0.01" value="0.80">
+            <span class="unit">PR</span>
+          </div>
+        </div>
+        <div class="input-row">
+          <label for="deg-pv">Degradación solar anual</label>
+          <div class="input-group">
+            <input type="number" id="deg-pv" min="0.3" max="1.0" step="0.05" value="0.5">
+            <span class="unit">%/año</span>
+          </div>
+        </div>
+      </div>
+      <div>
+        <details>
+          <summary>Parámetros técnicos del BESS</summary>
+          <div class="grid-2" style="margin-top:10px;">
+            <div>
+              <div class="input-row">
+                <label for="eff-chg">Eficiencia de carga</label>
+                <div class="input-group">
+                  <input type="number" id="eff-chg" min="0.85" max="0.99" step="0.01" value="0.96">
+                  <span class="unit">pu</span>
+                </div>
+              </div>
+              <div class="input-row">
+                <label for="eff-dis">Eficiencia de descarga</label>
+                <div class="input-group">
+                  <input type="number" id="eff-dis" min="0.85" max="0.99" step="0.01" value="0.96">
+                  <span class="unit">pu</span>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="input-row">
+                <label for="soc-min">SOC mínimo (DOD máx)</label>
+                <div class="input-group">
+                  <input type="number" id="soc-min" min="0" max="30" step="1" value="10">
+                  <span class="unit">%</span>
+                </div>
+              </div>
+              <div class="input-row">
+                <label for="soc-max">SOC máximo</label>
+                <div class="input-group">
+                  <input type="number" id="soc-max" min="80" max="100" step="1" value="95">
+                  <span class="unit">%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+    <div id="legal-notice"></div>
+  </div>
+
+  <!-- ── Comparativo de pagos ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Pago mensual del cliente: antes vs después</span>
+    </div>
+    <div class="payment-compare">
+      <div class="payment-box before">
+        <div class="payment-title">Antes — Solo EDESAL</div>
+        <div class="payment-amount" id="pay-before">$0</div>
+        <div class="pline"><span>Consumo</span><span id="kwh-before">—</span></div>
+        <div class="pline"><span>Tarifa</span><span id="tar-before">—</span></div>
+        <div class="pline total"><span>Total mensual</span><span id="tot-before">—</span></div>
+      </div>
+      <div class="payment-box after">
+        <div class="payment-title">Después — EDESAL + Innowatt</div>
+        <div class="payment-amount" id="pay-after">$0</div>
+        <div class="pline"><span>kWh importados de red</span><span id="kwh-after">—</span></div>
+        <div class="pline"><span>Factura EDESAL</span><span id="edesal-after">—</span></div>
+        <div class="pline"><span>Cuota a Innowatt</span><span id="innowatt-after">—</span></div>
+        <div class="pline total"><span>Total mensual</span><span id="tot-after">—</span></div>
+      </div>
+      <div class="payment-box save">
+        <div class="payment-title">Ahorro real del cliente</div>
+        <div class="payment-amount" id="pay-savings">$0</div>
+        <div class="pline"><span>Ahorro mensual</span><span id="sav-month">—</span></div>
+        <div class="pline"><span>Ahorro anual</span><span id="sav-year">—</span></div>
+        <div class="pline total"><span>% de factura original</span><span id="sav-pct">—</span></div>
+      </div>
+    </div>
+
+    <div class="bar-cmp">
+      <div class="bar-row">
+        <span class="bar-label">Antes</span>
+        <div class="bar-track">
+          <div class="bar-seg" style="background:#ef4444;width:100%;">EDESAL completo</div>
+        </div>
+        <span class="bar-val" id="bv-before">—</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Después</span>
+        <div class="bar-track">
+          <div class="bar-seg" id="b-edesal"    style="background:#94a3b8;"></div>
+          <div class="bar-seg" id="b-innowatt"  style="background:#3b82f6;"></div>
+          <div class="bar-seg" id="b-saving"    style="background:#22c55e;"></div>
+        </div>
+        <span class="bar-val" id="bv-after">—</span>
+      </div>
+    </div>
+    <div class="rein-note" id="rein-note"></div>
+  </div>
+
+  <!-- ── Indicadores Innowatt ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Indicadores del proyecto Innowatt</span>
+    </div>
+    <div class="grid-4" id="m-key" style="margin-bottom:10px;"></div>
+    <div class="grid-3" id="m-sec"></div>
+  </div>
+
+  <!-- ── Perfil horario ────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Perfil horario — generación solar vs demanda R2-110</span>
+    </div>
+    <div class="month-tabs" id="month-tabs"></div>
+    <div class="chart-wrap">
+      <canvas id="chart-day"
+        role="img"
+        aria-label="Gráfico de líneas mostrando generación solar en kW, demanda residencial R2-110 en kW, y SOC de batería en kWh, por hora del día.">
+        Perfil horario de generación y demanda.
+      </canvas>
+    </div>
+    <div class="legend-row">
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#f59e0b;"></span>
+        Generación solar (kW)
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:#3b82f6;"></span>
+        Demanda R2-110 (kW)
+      </div>
+      <div class="legend-item">
+        <span class="legend-swatch" style="background:rgba(34,197,94,0.5);border:1px solid #22c55e;"></span>
+        SOC batería (kWh)
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Cobertura energética ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Cobertura energética anual</span>
+    </div>
+    <div id="cobertura"></div>
+  </div>
+
+  <!-- ── Tabla año por año ─────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Flujo detallado año por año (20 años)</span>
+    </div>
+    <div class="table-wrap">
+      <table id="tbl"></table>
+    </div>
+  </div>
+
+  <!-- ── Pie ───────────────────────────────────────────────────────────────── -->
+  <div class="footer">
+    Innowatt · Calculadora de autoconsumo renovable ·
+    Basado en el Acuerdo SIGET N.° 072-E-2026 (Reglamento LFUER) ·
+    Perfil de demanda: R2-110 EDESAL · Curva solar: El Salvador 2024
+  </div>
+
+</div><!-- /container -->
+
+<!-- Chart.js desde CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<!-- Lógica del dashboard -->
+<script src="dashboard.js"></script>
+
+</body>
+</html>
