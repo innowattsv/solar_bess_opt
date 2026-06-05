@@ -589,22 +589,28 @@ function compute() {
   updateDayChart();
 
   // ── Cobertura energética ──────────────────────────────────────────────────
-  const cob_a = res.autoc / cons_anual * 100;
-  const cob_g = res.grid  / cons_anual * 100;
-  const rein_pct = res.gen > 0 ? res.rein / res.gen * 100 : 0;
+  // cob_solar = (consumo - grid) / consumo → siempre suma 100% con cob_g
+  // No usar autoc/consumo porque autoc incluye pérdidas round-trip del BESS
+  // que hacen que autoc + grid > consumo y los porcentajes superen el 100%.
+  const cob_solar = (cons_anual - res.grid) / cons_anual * 100;
+  const cob_g     = res.grid / cons_anual * 100;
+  const rein_pct  = res.gen > 0 ? res.rein / res.gen * 100 : 0;
+  const perdidas_bess = Math.max(0, res.autoc - (cons_anual - res.grid));
   document.getElementById('cobertura').innerHTML = `
     <p style="font-size:12px;color:var(--text-secondary);margin:0 0 4px">
       Consumo: ${cons_anual.toLocaleString()} kWh/año &nbsp;·&nbsp; Generación: ${Math.round(res.gen).toLocaleString()} kWh/año
     </p>
     <div class="cobertura-bar">
-      <div style="width:${cob_a.toFixed(0)}%;background:#22c55e">${cob_a.toFixed(0)}% solar</div>
-      <div style="width:${cob_g.toFixed(0)}%;background:#94a3b8">${cob_g.toFixed(0)}% red</div>
+      <div style="width:${cob_solar.toFixed(1)}%;background:#22c55e">${cob_solar.toFixed(0)}% solar</div>
+      <div style="width:${cob_g.toFixed(1)}%;background:#94a3b8">${cob_g.toFixed(0)}% red</div>
     </div>
     <table style="margin-top:12px">
       <tr><th>Concepto</th><th style="text-align:right">kWh/año</th><th style="text-align:right">Valor</th></tr>
-      <tr><td>Autoconsumo (directo + BESS)</td><td style="text-align:right">${Math.round(res.autoc).toLocaleString()}</td><td style="text-align:right;color:var(--success-text)">${fmt$(res.autoc * tarifa)}</td></tr>
+      <tr><td>Autoconsumo bruto (directo + BESS)</td><td style="text-align:right">${Math.round(res.autoc).toLocaleString()}</td><td style="text-align:right;color:var(--success-text)">${fmt$(res.autoc * tarifa)}</td></tr>
+      <tr><td>Pérdidas round-trip BESS</td><td style="text-align:right">-${Math.round(perdidas_bess).toLocaleString()}</td><td style="text-align:right;color:var(--warn-text)">-${fmt$(perdidas_bess * tarifa)}</td></tr>
+      <tr><td>Cobertura solar neta del consumo</td><td style="text-align:right">${Math.round(cons_anual - res.grid).toLocaleString()} (${cob_solar.toFixed(1)}%)</td><td style="text-align:right;color:var(--success-text)">${fmt$((cons_anual - res.grid) * tarifa)}</td></tr>
       <tr><td>Reinyección a red (50% Art. 22)</td><td style="text-align:right">${Math.round(res.rein).toLocaleString()} (${rein_pct.toFixed(0)}% gen)</td><td style="text-align:right;color:var(--blue-text)">${fmt$(credito_total)} crédito</td></tr>
-      <tr><td>Importación desde red</td><td style="text-align:right">${Math.round(res.grid).toLocaleString()}</td><td style="text-align:right">${fmt$(res.grid * tarifa)}</td></tr>
+      <tr><td>Importación desde red</td><td style="text-align:right">${Math.round(res.grid).toLocaleString()} (${cob_g.toFixed(1)}%)</td><td style="text-align:right">${fmt$(res.grid * tarifa)}</td></tr>
       <tr><td style="color:var(--warn-text)">Crédito expirado Art. 24</td><td style="text-align:right">—</td><td style="text-align:right;color:var(--warn-text)">${fmt$(res.cred_exp)}</td></tr>
       <tr class="row-highlight"><td>Factura EDESAL antes → después</td><td style="text-align:right">—</td><td style="text-align:right">${fmt$(factura_antes)} → ${fmt$(res.factura_edesal)}/año</td></tr>
     </table>
