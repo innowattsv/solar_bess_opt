@@ -332,37 +332,34 @@ function updateDayChart() {
   });
 }
 
-// ── Optimizador multiobjetivo ─────────────────────────────────────────────────
-// Objetivo: maximizar cobertura de demanda y retorno de Innowatt
-// Función: Score = w_cov × (autosuf/autosuf_máx) + w_ret × (1 − payback/pb_máx)
-// Restricción: payback ≤ pb_máx, cumplimiento Anexo I o II del Reglamento
+// ── Optimizador ───────────────────────────────────────────────────────────────
+// Objetivo: maximizar la cobertura de la demanda del cliente.
+// Restricción: payback de Innowatt ≤ pb_max años y cumplimiento regulatorio.
+// Desempate: si dos sistemas tienen cobertura similar (< 0.5%), se prefiere
+// el de menor payback (mejor retorno para Innowatt).
 window.runOptimizer = function() {
   const cons_mes = g('cons'), tarifa = g('tarifa');
   const cpv = g('cpv'), cbess = g('cbess');
-  const share = g('share') / 100, wacc = g('wacc') / 100;
-  const pb_max = g('pb-max');
-  const w_cov = g('w-cov') / 100, w_ret = g('w-ret') / 100;
+  const share = g('share') / 100, pb_max = g('pb-max');
   const pr = g('pr'), eff_chg = g('eff-chg'), eff_dis = g('eff-dis');
   const soc_min = g('soc-min'), soc_max_v = g('soc-max');
   const deg_pv = g('deg-pv') / 100;
   const FC = getFC();
   const lim_sin_bess = cons_mes / (720 * FC);
 
-  // Grid de búsqueda: PV cada 0.5 kW, BESS cada 0.5 kWh
   const pvs = [], besses = [];
   for (let p = 0.2; p <= 7.0; p = Math.round((p + 0.5) * 10) / 10) pvs.push(p);
   for (let b = 0; b <= 15; b += 0.5) besses.push(b);
 
-  let autosuf_max = 0;
-  const candidatos = [];
+  let mejor = null, total_eval = 0, total_pasan = 0;
 
   for (const pv of pvs) {
     for (const bess of besses) {
-      // Verificar legalidad regulatoria
       const gen_mes = pv * 5.48 * 30 * pr;
-      const legal_sin_bess = bess === 0 && pv <= lim_sin_bess + 0.01;
-      const legal_con_bess = bess > 0 && gen_mes <= cons_mes + 1;
-      if (!legal_sin_bess && !legal_con_bess) continue;
+      const legal = (bess === 0 && pv <= lim_sin_bess + 0.01) ||
+                    (bess > 0  && gen_mes <= cons_mes + 1);
+      if (!legal) continue;
+      total_eval++;
 
       const res = simAnual({
         pv, bess, cons_mes, tarifa, pr, eff_chg, eff_dis,
@@ -370,61 +367,61 @@ window.runOptimizer = function() {
         deg_pv_yr: deg_pv, deg_bess_yr: 0.02, year: 1
       });
 
-      const factura_antes = cons_mes * 12 * tarifa;
-      const ahorro = factura_antes - res.factura_edesal;
+      const ahorro = cons_mes * 12 * tarifa - res.factura_edesal;
       const cuota  = ahorro * share;
       const capex  = pv * 1000 * cpv + bess * cbess;
 
-      // Calcular payback simple
       let cum = -capex, pb = null;
       for (let y = 1; y <= 20; y++) {
         cum += cuota * Math.pow(1 - deg_pv, y - 1);
         if (cum >= 0 && !pb) { pb = y; break; }
       }
       if (!pb || pb > pb_max) continue;
+      total_pasan++;
 
-      autosuf_max = Math.max(autosuf_max, res.autosuf);
-      candidatos.push({ pv, bess, autosuf: res.autosuf, pb, capex, ahorro, cuota });
+      // Seleccionar el candidato con mayor autosuficiencia.
+      // Si la diferencia es menor a 0.5%, desempatar por menor payback.
+      if (!mejor ||
+          res.autosuf > mejor.autosuf + 0.5 ||
+          (Math.abs(res.autosuf - mejor.autosuf) <= 0.5 && pb < mejor.pb)) {
+        mejor = { pv, bess, autosuf: res.autosuf, pb, capex, ahorro, cuota };
+      }
     }
   }
 
-  if (!candidatos.length) {
-    alert(`Sin resultados con payback ≤ ${pb_max} años.\n\nSugerencias:\n• Aumenta el payback máximo\n• Reduce el % de ahorro para Innowatt\n• Verifica los costos de equipos`);
+  if (!mejor) {
+    alert(
+      `No existe ningún sistema que cumpla payback ≤ ${pb_max} años.\n\n` +
+      `Sugerencias:\n` +
+      `• Aumenta el payback máximo\n` +
+      `• Sube el % del ahorro para Innowatt\n` +
+      `• Verifica los costos de equipos`
+    );
     return;
   }
 
-  // Calcular score compuesto
-  for (const c of candidatos) {
-    c.score = w_cov * (c.autosuf / autosuf_max) + w_ret * (1 - c.pb / pb_max);
-  }
-  candidatos.sort((a, b) => b.score - a.score);
-  const opt = candidatos[0];
-
-  // TIR del óptimo
   let tir = '>50';
   for (let r = -0.05; r <= 1.0; r += 0.005) {
-    let v = -opt.capex;
-    for (let y = 1; y <= 20; y++) v += (opt.cuota * Math.pow(1 - deg_pv, y - 1)) / Math.pow(1 + r, y);
+    let v = -mejor.capex;
+    for (let y = 1; y <= 20; y++)
+      v += (mejor.cuota * Math.pow(1 - deg_pv, y - 1)) / Math.pow(1 + r, y);
     if (v <= 0) { tir = r > 0 ? (r * 100).toFixed(1) : '<0'; break; }
   }
 
-  optResult = { ...opt, tir, autosuf_max };
+  optResult = { ...mejor, tir };
 
-  const el = document.getElementById('opt-result');
-  el.classList.add('visible');
+  document.getElementById('opt-result').classList.add('visible');
   document.getElementById('opt-vals').innerHTML = `
-    <div class="opt-cell"><div class="ov">${opt.pv.toFixed(1)} kW</div><div class="ol">Solar</div></div>
-    <div class="opt-cell"><div class="ov">${opt.bess.toFixed(1)} kWh</div><div class="ol">BESS</div></div>
-    <div class="opt-cell"><div class="ov">${opt.autosuf.toFixed(0)}%</div><div class="ol">Autosuficiencia</div></div>
-    <div class="opt-cell"><div class="ov">${fmt$(opt.capex)}</div><div class="ol">CAPEX total</div></div>
-    <div class="opt-cell"><div class="ov">${opt.pb} años</div><div class="ol">Payback</div></div>
+    <div class="opt-cell"><div class="ov">${mejor.pv.toFixed(1)} kW</div><div class="ol">Solar</div></div>
+    <div class="opt-cell"><div class="ov">${mejor.bess.toFixed(1)} kWh</div><div class="ol">BESS</div></div>
+    <div class="opt-cell"><div class="ov">${mejor.autosuf.toFixed(0)}%</div><div class="ol">Autosuficiencia</div></div>
+    <div class="opt-cell"><div class="ov">${fmt$(mejor.capex)}</div><div class="ol">CAPEX total</div></div>
+    <div class="opt-cell"><div class="ov">${mejor.pb} años</div><div class="ol">Payback</div></div>
     <div class="opt-cell"><div class="ov">${tir}%</div><div class="ol">TIR estimada</div></div>
   `;
-  const score_pct = (opt.score * 100).toFixed(0);
-  document.getElementById('opt-detail').innerHTML =
-    `Score: ${score_pct}/100 · Cobertura: ${opt.autosuf.toFixed(1)}% ` +
-    `(máximo posible ${autosuf_max.toFixed(1)}%) · ${candidatos.length} combinaciones evaluadas`;
-  document.getElementById('score-bar').style.width = score_pct + '%';
+  document.getElementById('opt-detail').textContent =
+    `${total_pasan} sistemas dentro del plazo de ${pb_max} años · ` +
+    `${total_eval} combinaciones legales evaluadas`;
 };
 
 window.applyOptimal = function() {
@@ -659,4 +656,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('cat').addEventListener('change', compute);
   compute();
+});
+
+// pb-max-txt sync (se ejecuta después del DOMContentLoaded original)
+document.addEventListener('DOMContentLoaded', () => {
+  const pbEl = document.getElementById('pb-max');
+  const pbTxt = document.getElementById('pb-max-txt');
+  if (pbEl && pbTxt) {
+    pbEl.addEventListener('input', () => { pbTxt.textContent = pbEl.value; });
+  }
 });

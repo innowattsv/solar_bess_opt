@@ -102,46 +102,29 @@
       <span class="card-title">Optimizador de dimensionamiento</span>
       <button class="btn primary" onclick="runOptimizer()">Calcular tamaño óptimo</button>
     </div>
-    <div class="grid-2">
-      <div>
-        <div class="input-row">
-          <label for="pb-max">Payback máximo aceptable (Innowatt)</label>
-          <div class="input-group">
-            <input type="number" id="pb-max" min="3" max="15" step="1" value="10">
-            <span class="unit">años</span>
-          </div>
-        </div>
-        <div class="input-row">
-          <label for="w-cov">Peso: cobertura de la demanda</label>
-          <div class="input-group">
-            <input type="number" id="w-cov" min="0" max="100" step="10" value="60">
-            <span class="unit">%</span>
-          </div>
-        </div>
-        <div class="input-row">
-          <label for="w-ret">Peso: retorno financiero Innowatt</label>
-          <div class="input-group">
-            <input type="number" id="w-ret" min="0" max="100" step="10" value="40">
-            <span class="unit">%</span>
-          </div>
-        </div>
-      </div>
-      <div style="font-size:12px;color:var(--text-secondary);line-height:1.7;padding-top:4px;">
-        <strong style="color:var(--text);font-size:12px;">Función objetivo compuesta:</strong><br>
-        Score = w_cov × (autosuf / autosuf_máx) + w_ret × (1 − payback / pb_máx)<br><br>
-        El optimizador evalúa combinaciones de PV (0.2–7 kW) × BESS (0–15 kWh).
-        Filtra las que violan los límites del Anexo I o II del Reglamento LFUER
-        y las que superan el payback máximo definido.
+    <div class="input-row" style="max-width:420px;margin-bottom:14px;">
+      <label for="pb-max">Payback máximo aceptable para Innowatt</label>
+      <div class="input-group">
+        <input type="number" id="pb-max" min="3" max="20" step="1" value="10">
+        <span class="unit">años</span>
       </div>
     </div>
 
+    <div style="background:var(--bg-secondary);border-radius:var(--radius-md);padding:12px 14px;font-size:12px;color:var(--text-secondary);line-height:1.65;margin-bottom:4px;">
+      <strong style="color:var(--text);">Objetivo:</strong>
+      encontrar el sistema solar + BESS que maximiza la cobertura de la demanda del cliente.<br>
+      <strong style="color:var(--text);">Restricción:</strong>
+      el sistema debe recuperar la inversión de Innowatt en como máximo
+      <span id="pb-max-txt">10</span> años.<br>
+      <strong style="color:var(--text);">Desempate:</strong>
+      si dos sistemas tienen cobertura similar (diferencia &lt; 0.5%),
+      se prefiere el de menor payback.
+    </div>
+
     <div id="opt-result" class="opt-result">
-      <div class="opt-header">✓ Tamaño óptimo encontrado</div>
+      <div class="opt-header">Sistema óptimo encontrado</div>
       <div class="opt-grid" id="opt-vals"></div>
       <div class="opt-detail" id="opt-detail"></div>
-      <div class="score-bar-track">
-        <div class="score-bar-fill" id="score-bar" style="width:0%"></div>
-      </div>
       <div style="margin-top:10px;">
         <button class="btn" onclick="applyOptimal()">Aplicar este tamaño al dashboard</button>
       </div>
