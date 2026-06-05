@@ -348,7 +348,7 @@ window.runOptimizer = function() {
   const lim_sin_bess = cons_mes / (720 * FC);
 
   const pvs = [], besses = [];
-  for (let p = 0.2; p <= 7.0; p = Math.round((p + 0.5) * 10) / 10) pvs.push(p);
+  for (let p = 0.2; p <= 7.0; p = Math.round((p + 0.1) * 10) / 10) pvs.push(p);
   for (let b = 0; b <= 15; b += 0.5) besses.push(b);
 
   let mejor = null, total_eval = 0, total_pasan = 0;
